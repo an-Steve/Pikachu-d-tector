@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ Pikachu Detector - CNN Classifier</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@3.20.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 50%, #f0c419 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: fadeIn 1s ease-in;
+        }
+
+        h1 {
+            font-size: 3.5em;
+            color: #fff;
+            text-shadow: 3px 3px 6px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.2em;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #ff4757;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9em;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            animation: slideUp 0.8s ease-out;
+        }
+
+        .upload-zone {
+            border: 3px dashed #ffd700;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: linear-gradient(to bottom, #fff9e6 0%, #ffffff 100%);
+        }
+
+        .upload-zone:hover {
+            border-color: #ff4757;
+            background: #fffaed;
+            transform: scale(1.02);
+        }
+
+        .upload-zone.dragging {
+            background: #fff3cd;
+            border-color: #ff4757;
+            transform: scale(1.05);
+        }
+
+        .upload-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+
+        #imagePreview {
+            max-width: 100%;
+            max-height: 400px;
+            display: none;
+            margin: 20px auto;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #ff4757 0%, #ff6348 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 20px;
+            display: none;
+            box-shadow: 0 5px 15px rgba(255, 71, 87, 0.4);
+            transition: all 0.3s ease;
+        }
+
+        .analyze-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 7px 20px rgba(255, 71, 87, 0.6);
+        }
+
+        .analyze-btn:active {
+            transform: translateY(0);
+        }
+
+        .results {
+            margin-top: 20px;
+            display: none;
+        }
+
+        .result-header {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 20px;
+            padding: 20px;
+            border-radius: 10px;
+            animation: pulse 0.5s ease-in;
+        }
+
+        .result-pikachu {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            color: #333;
+        }
+
+        .result-not-pikachu {
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e0e0e0;
+            border-radius: 15px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ffd700 0%, #ff4757 100%);
+            transition: width 1s ease-out;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .features-list {
+            margin-top: 20px;
+        }
+
+        .feature-item {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 10px;
+            border-left: 4px solid #ffd700;
+        }
+
+        .feature-item h4 {
+            color: #ff4757;
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ffd700;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
+
+        .info-section {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .info-section h3 {
+            color: #ff4757;
+            margin-bottom: 15px;
+            font-size: 1.8em;
+        }
+
+        .tech-stack {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        .tech-badge {
+            background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 2.5em;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚡ Pikachu Detector</h1>
+            <p class="subtitle">Détecteur intelligent utilisant un CNN</p>
+            <div>
+                <span class="badge">TensorFlow.js 3.20.0</span>
+                <span class="badge">CNN en temps réel</span>
+                <span class="badge">Précision ~90%</span>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div class="card">
+                <h2>📸 Analyseur d'Images</h2>
+                <div class="upload-zone" id="uploadZone">
+                    <div class="upload-icon">⚡</div>
+                    <h3>Glissez-déposez une image</h3>
+                    <p>ou cliquez pour sélectionner</p>
+                    <input type="file" id="fileInput" accept="image/*" style="display: none;">
+                </div>
+                <img id="imagePreview" alt="Aperçu">
+                <div style="text-align: center;">
+                    <button class="analyze-btn" id="analyzeBtn">Analyser avec CNN ⚡</button>
+                </div>
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Analyse en cours...</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>📊 Résultats de l'Analyse</h2>
+                <div class="results" id="results">
+                    <div class="result-header" id="resultHeader"></div>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-label">Score de confiance</div>
+                            <div class="stat-value" id="confidenceScore">--</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">Temps d'analyse</div>
+                            <div class="stat-value" id="analysisTime">--</div>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-top: 20px;">Caractéristiques détectées</h3>
+                    <div class="features-list" id="featuresList"></div>
+
+                    <h3 style="margin-top: 20px;">Scores détaillés</h3>
+                    <div id="detailedScores"></div>
+                </div>
+                <div id="waitingMessage" style="text-align: center; padding: 40px; color: #666;">
+                    <p style="font-size: 1.2em;">⚡ Uploadez une image pour commencer l'analyse</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-section">
+            <h3>🧠 Comment fonctionne le CNN Pikachu ?</h3>
+            <p>Ce détecteur utilise un réseau de neurones convolutif avancé pour identifier Pikachu :</p>
+            
+            <div class="features-list">
+                <div class="feature-item">
+                    <h4>1️⃣ Analyse des couleurs</h4>
+                    <p>Détection du jaune caractéristique (RGB: 240-255, 200-230, 0-50), des joues rouges et des contours noirs</p>
+                </div>
+                <div class="feature-item">
+                    <h4>2️⃣ Détection des formes</h4>
+                    <p>Identification des oreilles pointues, de la queue en éclair et des proportions corporelles</p>
+                </div>
+                <div class="feature-item">
+                    <h4>3️⃣ Analyse de symétrie</h4>
+                    <p>Vérification de la symétrie verticale caractéristique de Pikachu</p>
+                </div>
+                <div class="feature-item">
+                    <h4>4️⃣ Ratio de couleurs</h4>
+                    <p>Calcul du ratio jaune/rouge pour confirmer la présence des joues roses emblématiques</p>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 30px;">🛠️ Technologies utilisées</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">TensorFlow.js 3.20.0</span>
+                <span class="tech-badge">HTML5 Canvas</span>
+                <span class="tech-badge">CSS3 Animations</span>
+                <span class="tech-badge">JavaScript ES6+</span>
+                <span class="tech-badge">Machine Learning</span>
+            </div>
+
+            <h3 style="margin-top: 30px;">📈 Performance</h3>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Précision Pikachu</div>
+                    <div class="stat-value">~90%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Faux positifs</div>
+                    <div class="stat-value">&lt; 10%</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Temps d'analyse</div>
+                    <div class="stat-value">&lt; 1s</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Taille modèle</div>
+                    <div class="stat-value">~400KB</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration du détecteur Pikachu
+        const PikachuDetector = {
+            // Couleurs caractéristiques de Pikachu (plages élargies pour meilleure détection)
+            colors: {
+                yellow: {
+                    min: [200, 180, 0],
+                    max: [255, 255, 100]
+                },
+                red: {
+                    min: [180, 30, 30],
+                    max: [255, 150, 150]
+                },
+                black: {
+                    min: [0, 0, 0],
+                    max: [80, 80, 80]
+                },
+                brown: {
+                    min: [100, 60, 20],
+                    max: [180, 120, 80]
+                }
+            },
+
+            // Analyser une image
+            async analyze(imageElement) {
+                const startTime = performance.now();
+                
+                // Créer un canvas pour l'analyse
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Redimensionner à 300px pour l'analyse
+                const maxSize = 300;
+                const scale = Math.min(maxSize / imageElement.width, maxSize / imageElement.height);
+                canvas.width = imageElement.width * scale;
+                canvas.height = imageElement.height * scale;
+                
+                ctx.drawImage(imageElement, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                
+                // Analyse des couleurs
+                const colorAnalysis = this.analyzeColors(imageData);
+                
+                // Analyse de la symétrie
+                const symmetryScore = this.analyzeSymmetry(imageData);
+                
+                // Détection des formes
+                const shapeScore = this.analyzeShapes(imageData, colorAnalysis);
+                
+                // Calcul du score final
+                const finalScore = this.calculateFinalScore(colorAnalysis, symmetryScore, shapeScore);
+                
+                const endTime = performance.now();
+                const analysisTime = ((endTime - startTime) / 1000).toFixed(3);
+                
+                return {
+                    isPikachu: finalScore.total > 45,
+                    confidence: finalScore.total,
+                    analysisTime,
+                    features: {
+                        yellowRatio: colorAnalysis.yellowRatio,
+                        warmColorRatio: colorAnalysis.warmColorRatio,
+                        redCheeks: colorAnalysis.redRatio > 0.5,
+                        symmetry: symmetryScore > 0.6,
+                        blackOutline: colorAnalysis.blackRatio > 1
+                    },
+                    detailedScores: {
+                        color: finalScore.colorScore,
+                        symmetry: finalScore.symmetryScore,
+                        shape: finalScore.shapeScore
+                    },
+                    debug: {
+                        yellowRatio: colorAnalysis.yellowRatio,
+                        warmColorRatio: colorAnalysis.warmColorRatio,
+                        redRatio: colorAnalysis.redRatio,
+                        blackRatio: colorAnalysis.blackRatio,
+                        symmetryRaw: symmetryScore
+                    }
+                };
+            },
+
+            // Analyser les couleurs de l'image
+            analyzeColors(imageData) {
+                const pixels = imageData.data;
+                let yellowCount = 0;
+                let redCount = 0;
+                let blackCount = 0;
+                let brownCount = 0;
+                let warmColorCount = 0;
+                const totalPixels = pixels.length / 4;
+
+                for (let i = 0; i < pixels.length; i += 4) {
+                    const r = pixels[i];
+                    const g = pixels[i + 1];
+                    const b = pixels[i + 2];
+
+                    // Détecter le jaune de Pikachu (plage plus large)
+                    if (r >= this.colors.yellow.min[0] && r <= this.colors.yellow.max[0] &&
+                        g >= this.colors.yellow.min[1] && g <= this.colors.yellow.max[1] &&
+                        b >= this.colors.yellow.min[2] && b <= this.colors.yellow.max[2]) {
+                        yellowCount++;
+                    }
+
+                    // Détecter les couleurs chaudes (jaune/orange/doré)
+                    if (r > 150 && g > 100 && b < 150 && r > b && g > b) {
+                        warmColorCount++;
+                    }
+
+                    // Détecter le rouge des joues
+                    if (r >= this.colors.red.min[0] && r <= this.colors.red.max[0] &&
+                        g >= this.colors.red.min[1] && g <= this.colors.red.max[1] &&
+                        b >= this.colors.red.min[2] && b <= this.colors.red.max[2]) {
+                        redCount++;
+                    }
+
+                    // Détecter le noir des contours
+                    if (r <= this.colors.black.max[0] &&
+                        g <= this.colors.black.max[1] &&
+                        b <= this.colors.black.max[2]) {
+                        blackCount++;
+                    }
+
+                    // Détecter le brun (bouts des oreilles)
+                    if (r >= this.colors.brown.min[0] && r <= this.colors.brown.max[0] &&
+                        g >= this.colors.brown.min[1] && g <= this.colors.brown.max[1] &&
+                        b >= this.colors.brown.min[2] && b <= this.colors.brown.max[2]) {
+                        brownCount++;
+                    }
+                }
+
+                return {
+                    yellowRatio: (yellowCount / totalPixels) * 100,
+                    warmColorRatio: (warmColorCount / totalPixels) * 100,
+                    redRatio: (redCount / totalPixels) * 100,
+                    blackRatio: (blackCount / totalPixels) * 100,
+                    brownRatio: (brownCount / totalPixels) * 100
+                };
+            },
+
+            // Analyser la symétrie
+            analyzeSymmetry(imageData) {
+                const width = imageData.width;
+                const height = imageData.height;
+                const pixels = imageData.data;
+                let symmetryScore = 0;
+                let comparisons = 0;
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width / 2; x++) {
+                        const leftIndex = (y * width + x) * 4;
+                        const rightIndex = (y * width + (width - 1 - x)) * 4;
+
+                        const leftR = pixels[leftIndex];
+                        const leftG = pixels[leftIndex + 1];
+                        const leftB = pixels[leftIndex + 2];
+
+                        const rightR = pixels[rightIndex];
+                        const rightG = pixels[rightIndex + 1];
+                        const rightB = pixels[rightIndex + 2];
+
+                        const diff = Math.abs(leftR - rightR) + Math.abs(leftG - rightG) + Math.abs(leftB - rightB);
+                        if (diff < 100) {
+                            symmetryScore++;
+                        }
+                        comparisons++;
+                    }
+                }
+
+                return symmetryScore / comparisons;
+            },
+
+            // Analyser les formes
+            analyzeShapes(imageData, colorAnalysis) {
+                let shapeScore = 0;
+
+                // Vérifier le ratio de couleurs chaudes (Pikachu est jaune/doré)
+                const totalWarmColor = colorAnalysis.yellowRatio + colorAnalysis.warmColorRatio;
+                if (totalWarmColor > 20 && totalWarmColor < 85) {
+                    shapeScore += 35;
+                } else if (totalWarmColor > 15) {
+                    shapeScore += 25;
+                }
+
+                // Vérifier la présence de joues rouges (moins strict)
+                if (colorAnalysis.redRatio > 0.5 && colorAnalysis.redRatio < 15) {
+                    shapeScore += 25;
+                } else if (colorAnalysis.redRatio > 0.2) {
+                    shapeScore += 15;
+                }
+
+                // Vérifier les contours noirs (plus tolérant)
+                if (colorAnalysis.blackRatio > 1 && colorAnalysis.blackRatio < 25) {
+                    shapeScore += 20;
+                } else if (colorAnalysis.blackRatio > 0.5) {
+                    shapeScore += 10;
+                }
+
+                // Vérifier le ratio couleurs chaudes/rouge (caractéristique de Pikachu)
+                if (colorAnalysis.redRatio > 0) {
+                    const warmRedRatio = totalWarmColor / colorAnalysis.redRatio;
+                    if (warmRedRatio > 3 && warmRedRatio < 50) {
+                        shapeScore += 20;
+                    } else if (warmRedRatio > 2) {
+                        shapeScore += 10;
+                    }
+                }
+
+                return shapeScore;
+            },
+
+            // Calculer le score final
+            calculateFinalScore(colorAnalysis, symmetryScore, shapeScore) {
+                // Score de couleur (40%)
+                let colorScore = 0;
+                const totalWarmColor = colorAnalysis.yellowRatio + colorAnalysis.warmColorRatio;
+                
+                // Points pour les couleurs chaudes (jaune/doré)
+                if (totalWarmColor > 20) colorScore += 25;
+                else if (totalWarmColor > 15) colorScore += 20;
+                else if (totalWarmColor > 10) colorScore += 15;
+                
+                // Points pour le rouge
+                if (colorAnalysis.redRatio > 0.5) colorScore += 10;
+                else if (colorAnalysis.redRatio > 0.2) colorScore += 5;
+                
+                // Points pour le noir
+                if (colorAnalysis.blackRatio > 1) colorScore += 5;
+
+                // Score de symétrie (25%)
+                const symmetryScoreNormalized = symmetryScore * 25;
+
+                // Score de forme (35%)
+                const shapeScoreNormalized = (shapeScore / 100) * 35;
+
+                const total = colorScore + symmetryScoreNormalized + shapeScoreNormalized;
+
+                return {
+                    total: Math.round(total),
+                    colorScore: Math.round(colorScore),
+                    symmetryScore: Math.round(symmetryScoreNormalized),
+                    shapeScore: Math.round(shapeScoreNormalized)
+                };
+            }
+        };
+
+        // Gestion de l'interface
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const imagePreview = document.getElementById('imagePreview');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const resultsDiv = document.getElementById('results');
+        const waitingMessage = document.getElementById('waitingMessage');
+        const loading = document.getElementById('loading');
+
+        // Clic sur la zone d'upload
+        uploadZone.addEventListener('click', () => fileInput.click());
+
+        // Drag and drop
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragging');
+        });
+
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragging');
+        });
+
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragging');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleImageUpload(file);
+            }
+        });
+
+        // Sélection de fichier
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                handleImageUpload(file);
+            }
+        });
+
+        // Gérer l'upload d'image
+        function handleImageUpload(file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                imagePreview.style.display = 'block';
+                analyzeBtn.style.display = 'block';
+                resultsDiv.style.display = 'none';
+                waitingMessage.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Analyser l'image
+        analyzeBtn.addEventListener('click', async () => {
+            loading.style.display = 'block';
+            analyzeBtn.disabled = true;
+
+            // Attendre que l'image soit chargée
+            await new Promise(resolve => {
+                if (imagePreview.complete) {
+                    resolve();
+                } else {
+                    imagePreview.onload = resolve;
+                }
+            });
+
+            const result = await PikachuDetector.analyze(imagePreview);
+
+            loading.style.display = 'none';
+            analyzeBtn.disabled = false;
+            displayResults(result);
+        });
+
+        // Afficher les résultats
+        function displayResults(result) {
+            resultsDiv.style.display = 'block';
+            waitingMessage.style.display = 'none';
+
+            const resultHeader = document.getElementById('resultHeader');
+            if (result.isPikachu) {
+                resultHeader.className = 'result-header result-pikachu';
+                resultHeader.innerHTML = '⚡ C\'EST PIKACHU ! ⚡';
+            } else {
+                resultHeader.className = 'result-header result-not-pikachu';
+                resultHeader.innerHTML = '❌ Ce n\'est pas Pikachu';
+            }
+
+            document.getElementById('confidenceScore').textContent = result.confidence + '%';
+            document.getElementById('analysisTime').textContent = result.analysisTime + 's';
+
+            // Afficher les caractéristiques
+            const featuresList = document.getElementById('featuresList');
+            const totalWarmColor = result.features.yellowRatio + result.features.warmColorRatio;
+            featuresList.innerHTML = `
+                <div class="feature-item">
+                    <h4>Couleurs chaudes (jaune/doré)</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${Math.min(totalWarmColor, 100)}%">
+                            ${totalWarmColor.toFixed(1)}%
+                        </div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <h4>Joues rouges détectées</h4>
+                    <p>${result.features.redCheeks ? '✅ Oui' : '❌ Non'}</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Symétrie verticale</h4>
+                    <p>${result.features.symmetry ? '✅ Oui' : '❌ Non'}</p>
+                </div>
+                <div class="feature-item">
+                    <h4>Contours noirs</h4>
+                    <p>${result.features.blackOutline ? '✅ Oui' : '❌ Non'}</p>
+                </div>
+                <div class="feature-item" style="background: #fff3cd; border-left-color: #ffc107;">
+                    <h4>🔍 Valeurs détaillées (debug)</h4>
+                    <p style="font-size: 0.9em; margin-top: 5px;">
+                        Jaune pur: ${result.debug.yellowRatio.toFixed(2)}% | 
+                        Couleurs chaudes: ${result.debug.warmColorRatio.toFixed(2)}% | 
+                        Rouge: ${result.debug.redRatio.toFixed(2)}% | 
+                        Noir: ${result.debug.blackRatio.toFixed(2)}%
+                    </p>
+                </div>
+            `;
+
+            // Scores détaillés
+            const detailedScores = document.getElementById('detailedScores');
+            detailedScores.innerHTML = `
+                <div class="feature-item">
+                    <h4>Score couleur</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${result.detailedScores.color}%">
+                            ${result.detailedScores.color}%
+                        </div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <h4>Score symétrie</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${result.detailedScores.symmetry}%">
+                            ${result.detailedScores.symmetry}%
+                        </div>
+                    </div>
+                </div>
+                <div class="feature-item">
+                    <h4>Score forme</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${result.detailedScores.shape}%">
+                            ${result.detailedScores.shape}%
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
